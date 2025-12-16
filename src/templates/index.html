@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Translator & Critic</title>
+    <!-- Bootstrap 5 CDN для современного стиля -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* ========== КАСТОМНЫЕ СТИЛИ ========== */
+        
+        /* Общие стили */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            /* Минималистичный фон - светлый градиент */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .container-main {
+            /* Основной контейнер приложения */
+            max-width: 900px;
+            width: 100%;
+            padding: 20px;
+        }
+        
+        .card {
+            /* Карточка с тенью для современного вида */
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border: none;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+        
+        .card-header {
+            /* Заголовок карточки */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .card-header h1 {
+            margin-bottom: 5px;
+            font-weight: 700;
+            font-size: 2.5rem;
+        }
+        
+        .card-header p {
+            margin: 0;
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+        
+        .card-body {
+            /* Тело карточки */
+            padding: 40px;
+        }
+        
+        /* Форма и инпуты */
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            /* Метки для полей ввода */
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        textarea.form-control,
+        select.form-control {
+            /* Стили для текстовой области и селекта */
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 12px 15px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+        }
+        
+        textarea.form-control:focus,
+        select.form-control:focus {
+            /* При фокусе на поле */
+            border-color: #667eea;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea.form-control {
+            /* Специфические стили для текстовой области */
+            resize: vertical;
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Кнопки */
+        .btn-group-custom {
+            /* Группа кнопок */
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            /* Общие стили для кнопок */
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-translate {
+            /* Кнопка "Перевести" */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-translate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+        
+        .btn-judge {
+            /* Кнопка "Оценить" */
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .btn-judge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.3);
+            color: white;
+        }
+        
+        /* Результаты */
+        .results-section {
+            /* Секция с результатами */
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .result-block {
+            /* Блок с результатом */
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        
+        .result-block h3 {
+            /* Заголовок блока результата */
+            color: #667eea;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        
+        .result-text {
+            /* Текст результата */
+            color: #2c3e50;
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+        
+        /* Стили для markdown контента в оценке */
+        .result-text h1,
+        .result-text h2,
+        .result-text h3,
+        .result-text h4,
+        .result-text h5,
+        .result-text h6 {
+            margin-top: 12px;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #667eea;
+            font-size: 1.1rem;  /* Единый размер для всех заголовков */
+            line-height: 1.5;
+        }
+        
+        .result-text ul,
+        .result-text ol {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .result-text li {
+            margin-bottom: 5px;
+            line-height: 1.6;
+        }
+        
+        .result-text strong,
+        .result-text b {
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .result-text em,
+        .result-text i {
+            font-style: italic;
+            color: #555;
+        }
+        
+        .result-text code {
+            background-color: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #d63384;
+        }
+        
+        .result-text p {
+            margin-bottom: 10px;
+        }
+        
+        /* Сообщения об ошибках */
+        .alert {
+            border-radius: 10px;
+            border: none;
+            margin-bottom: 25px;
+        }
+        
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .card-header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .card-body {
+                padding: 25px;
+            }
+            
+            .btn-group-custom {
+                gap: 10px;
+            }
+            
+            .btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        /* Анимация загрузки */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-main">
+        <div class="card">
+            <!-- ========== ЗАГОЛОВОК ПРИЛОЖЕНИЯ ========== -->
+            <div class="card-header">
+                <h1>🌐 AI Translator & Critic</h1>
+                <p>Переводи текст и получай экспертную оценку качества перевода</p>
+            </div>
+            
+            <!-- ========== ОСНОВНОЕ СОДЕРЖИМОЕ ========== -->
+            <div class="card-body">
+                
+                <!-- Отображение ошибок (если есть) -->
+                {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        <strong>⚠️ Ошибка:</strong> {{ error }}
+                    </div>
+                {% endif %}
+                
+                <!-- Форма для ввода текста (видима только если нет результатов) -->
+                {% if not original_text %}
+                    <form method="POST" action="/" id="translationForm">
+                        <!-- Поле для ввода исходного текста -->
+                        <div class="form-group">
+                            <label for="textInput">Введите текст для перевода:</label>
+                            <textarea
+                                class="form-control"
+                                id="textInput"
+                                name="text"
+                                placeholder="Вставьте здесь текст, который вы хотите перевести..."
+                                required
+                            ></textarea>
+                        </div>
+                        
+                        <!-- Выбор целевого языка -->
+                        <div class="form-group">
+                            <label for="languageSelect">Выберите язык для перевода:</label>
+                            <select
+                                class="form-control"
+                                id="languageSelect"
+                                name="language"
+                                required
+                            >
+                                <option value="Английский">🇬🇧 Английский</option>
+                                <option value="Французский">🇫🇷 Французский</option>
+                                <option value="Немецкий">🇩🇪 Немецкий</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Кнопки для отправки формы -->
+                        <div class="btn-group-custom">
+                            <button
+                                type="submit"
+                                name="action"
+                                value="translate"
+                                class="btn btn-translate"
+                                id="translateBtn"
+                            >
+                                ✨ Перевести
+                            </button>
+                            <button
+                                type="submit"
+                                name="action"
+                                value="judge"
+                                class="btn btn-judge"
+                                id="judgeBtn"
+                            >
+                                ⚖️ Оценить LLM-as-a-Judge
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
+                
+                <!-- Отображение результатов (если они есть) -->
+                {% if original_text %}
+                    <div class="results-section">
+                        <!-- Блок с оригинальным текстом -->
+                        <div class="result-block">
+                            <h3>📝 Исходный текст</h3>
+                            <p class="result-text">{{ original_text }}</p>
+                        </div>
+                        
+                        <!-- Блок с переведённым текстом -->
+                        <div class="result-block">
+                            <h3>🌍 Перевод ({{ target_language }})</h3>
+                            <p class="result-text">{{ translated_text }}</p>
+                        </div>
+                        
+                        <!-- Блок с оценкой качества перевода -->
+                        <div class="result-block">
+                            <h3>⚖️ Оценка качества (LLM-as-a-Judge)</h3>
+                            <div class="result-text">{{ evaluation|safe }}</div>
+                        </div>
+                        
+                        <!-- Кнопка для возврата к форме -->
+                        <div style="text-align: center; margin-top: 30px;">
+                            <a href="/" class="btn btn-translate">
+                                ← Новый перевод
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS для интерактивности -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        /* ========== JAVASCRIPT ЛОГИКА ========== */
+        
+        // Получаем элементы формы
+        const translationForm = document.getElementById('translationForm');
+        const textInput = document.getElementById('textInput');
+        const translateBtn = document.getElementById('translateBtn');
+        const judgeBtn = document.getElementById('judgeBtn');
+        
+        // Обработчик отправки формы
+        if (translationForm) {
+            translationForm.addEventListener('submit', function(e) {
+                // Проверяем, не пуст ли текст
+                if (!textInput.value.trim()) {
+                    e.preventDefault();  // Отменяем отправку
+                    alert('Пожалуйста, введите текст для перевода!');
+                    return false;
+                }
+                // Если текст не пуст, показываем индикатор загрузки
+                const submitBtn = document.activeElement;
+                if (submitBtn && submitBtn.id === 'translateBtn') {
+                    translateBtn.innerHTML = '<span class="spinner"></span>Перевод...';
+                    translateBtn.disabled = true;
+                } else if (submitBtn && submitBtn.id === 'judgeBtn') {
+                    judgeBtn.innerHTML = '<span class="spinner"></span>Оценка...';
+                    judgeBtn.disabled = true;
+                }
+                // Форма будет отправлена (return не блокирует)
+            });
+        }
+    </script>
+</body>
+</html>
