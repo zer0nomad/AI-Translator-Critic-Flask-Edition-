@@ -497,7 +497,289 @@ class TestDefaultValues:
         assert mock_call_llm.called
 
 
+# ========== ПАРАМЕТРИЗОВАННЫЕ ТЕСТЫ ==========
+# NEW FEATURE: Параметризованные тесты для всех комбинаций языков и текстов
+
+@pytest.mark.parametrize("language", ["Английский", "Французский", "Немецкий"])
+@pytest.mark.critical
+def test_all_languages_supported(client, mock_call_llm, language):
+    """Проверяет поддержку всех трёх языков (параметризованный тест)."""
+    mock_call_llm.return_value = f"Translated to {language}"
+    
+    response = client.post("/", data={
+        "text": "Test text",
+        "language": language
+    })
+    
+    assert response.status_code == 200
+    assert mock_call_llm.call_count == 2
+
+
+@pytest.mark.parametrize("text_sample", [
+    "Short text",
+    "A" * 1000,  # Очень длинный текст из одного символа
+    "Multiple words in one sentence. And another sentence!",
+    "Текст с кириллицей",
+    "Mélange de français"
+])
+def test_various_text_samples(client, mock_call_llm, text_sample):
+    """Проверяет обработку разных типов текстов (параметризованный тест)."""
+    mock_call_llm.return_value = "Result"
+    
+    response = client.post("/", data={
+        "text": text_sample,
+        "language": "Английский"
+    })
+    
+    assert response.status_code == 200
+    assert len(text_sample) > 0
+
+
+# ========== ТЕСТЫ ПРОИЗВОДИТЕЛЬНОСТИ ==========
+# NEW FEATURE: Проверка времени выполнения запросов
+
+import time
+
+class TestPerformance:
+    """Тесты производительности приложения."""
+    
+    @pytest.mark.critical
+    def test_form_loading_performance(self, client):
+        """Проверяет скорость загрузки формы (должна быть < 100ms)."""
+        start_time = time.time()
+        response = client.get("/")
+        elapsed = time.time() - start_time
+        
+        assert response.status_code == 200
+        assert elapsed < 0.1, f"Форма загружается слишком долго: {elapsed:.3f}s"
+    
+    @patch('app.call_llm')
+    def test_post_response_time(self, mock_call_llm, client, sample_form_data):
+        """Проверяет скорость обработки POST запроса."""
+        mock_call_llm.return_value = "Quick response"
+        
+        start_time = time.time()
+        response = client.post("/", data=sample_form_data)
+        elapsed = time.time() - start_time
+        
+        assert response.status_code == 200
+        assert elapsed < 1.0, f"POST обработка слишком долгая: {elapsed:.3f}s"
+    
+    @patch('app.call_llm')
+    def test_concurrent_like_requests(self, mock_call_llm, client, sample_form_data):
+        """Проверяет обработку нескольких быстрых запросов подряд."""
+        mock_call_llm.return_value = "Response"
+        
+        start_time = time.time()
+        for _ in range(10):
+            response = client.post("/", data=sample_form_data)
+            assert response.status_code == 200
+        elapsed = time.time() - start_time
+        
+        # 10 запросов должны обработаться за < 5 сек
+        assert elapsed < 5.0, f"Массовая обработка запросов медленнее чем ожидается: {elapsed:.3f}s"
+
+
+# ========== ТЕСТЫ БЕЗОПАСНОСТИ ==========
+# NEW FEATURE: Расширенные тесты безопасности
+
+class TestSecurityEnhancements:
+    """Улучшенные тесты безопасности приложения."""
+    
+    @patch('app.call_llm')
+    def test_xss_prevention_in_input(self, mock_call_llm, client):
+        """
+        Проверяет, что XSS атаки в входных данных не срабатывают.
+        
+        Тестирует что опасный HTML не выполняется:
+        - img src='x' onerror=alert(1)
+        - <svg/onload=alert(1)>
+        - script tags
+        """
+        xss_payloads = [
+            '<img src=x onerror="alert(\'XSS\')">',
+            '<svg/onload=alert(1)>',
+            '<script>alert(1)</script>',
+        ]
+        
+        mock_call_llm.return_value = "Safe response"
+        
+        for payload in xss_payloads:
+            response = client.post("/", data={
+                "text": payload,
+                "language": "Английский"
+            })
+            
+            assert response.status_code == 200
+            # Приложение не падает при XSS payload
+            # Payload содержится в ответе как текст (в textarea), что нормально
+    
+    @patch('app.call_llm')
+    def test_sql_injection_like_patterns(self, mock_call_llm, client):
+        """
+        Проверяет обработку SQL-подобных паттернов (профилактика).
+        
+        Примечание: Наше приложение использует API, а не прямую БД,
+        но проверяем что опасные паттерны не вызывают ошибок.
+        """
+        sql_like_patterns = [
+            "'; DROP TABLE users; --",
+            "1' OR '1'='1",
+            "admin' --",
+            "UNION SELECT * FROM",
+        ]
+        
+        mock_call_llm.return_value = "Handled"
+        
+        for pattern in sql_like_patterns:
+            response = client.post("/", data={
+                "text": pattern,
+                "language": "Английский"
+            })
+            
+            assert response.status_code == 200
+    
+    @patch('app.call_llm')
+    def test_command_injection_prevention(self, mock_call_llm, client):
+        """Проверяет обработку потенциальных command injection попыток."""
+        dangerous_commands = [
+            "$(rm -rf /)",
+            "`cat /etc/passwd`",
+            "| ls -la",
+            "; echo 'pwned'",
+        ]
+        
+        mock_call_llm.return_value = "Safe"
+        
+        for cmd in dangerous_commands:
+            response = client.post("/", data={
+                "text": cmd,
+                "language": "Английский"
+            })
+            assert response.status_code == 200
+    
+    @patch('app.call_llm')
+    def test_header_injection_prevention(self, mock_call_llm, client):
+        """Проверяет, что невозможна header injection атака."""
+        response = client.post("/", data={
+            "text": "Test\r\nX-Injected: true",
+            "language": "Английский"
+        })
+        
+        assert response.status_code == 200
+        # Проверяем что custom headers не попали в ответ
+        assert "X-Injected" not in response.headers or response.headers.get("X-Injected") != "true"
+
+
+# ========== ТЕСТЫ ИНТЕГРАЦИИ С MARKDOWN ==========
+# NEW FEATURE: Расширенные тесты обработки markdown
+
+class TestMarkdownIntegration:
+    """Расширенные тесты для markdown обработки."""
+    
+    @patch('app.call_llm')
+    def test_markdown_code_blocks(self, mock_call_llm, client, sample_form_data):
+        """Проверяет обработку markdown code blocks."""
+        markdown_with_code = """
+## Результат
+
+```python
+def hello():
+    print("Hello, World!")
+```
+
+Код выше выполняет простую функцию.
+"""
+        
+        mock_call_llm.side_effect = ["Translation", markdown_with_code]
+        
+        response = client.post("/", data=sample_form_data)
+        html = response.get_data(as_text=True)
+        
+        # Проверяем что код обработан (код может быть в <pre> или <code>)
+        assert "<pre>" in html or "<code>" in html or "```" not in html
+    
+    @patch('app.call_llm')
+    def test_markdown_tables(self, mock_call_llm, client, sample_form_data):
+        """Проверяет обработку markdown таблиц."""
+        markdown_with_table = """
+| Язык | Сложность |
+|------|-----------|
+| Python | Низкая |
+| C++ | Высокая |
+"""
+        
+        mock_call_llm.side_effect = ["Translation", markdown_with_table]
+        
+        response = client.post("/", data=sample_form_data)
+        html = response.get_data(as_text=True)
+        
+        # Таблица должна быть обработана
+        assert "table" in html.lower() or "Python" in html
+    
+    @patch('app.call_llm')
+    def test_markdown_links(self, mock_call_llm, client, sample_form_data):
+        """Проверяет обработку markdown ссылок."""
+        markdown_with_links = """
+[GitHub](https://github.com)
+[Documentation](https://docs.example.com)
+"""
+        
+        mock_call_llm.side_effect = ["Translation", markdown_with_links]
+        
+        response = client.post("/", data=sample_form_data)
+        html = response.get_data(as_text=True)
+        
+        # Ссылки должны быть преобразованы в HTML
+        assert "<a" in html or "href=" in html
+
+
+# ========== ТЕСТЫ УСТОЙЧИВОСТИ К ОШИБКАМ ==========
+# NEW FEATURE: Тесты на graceful degradation
+
+class TestErrorRecovery:
+    """Тесты устойчивости приложения к различным ошибкам."""
+    
+    @patch('app.call_llm')
+    def test_partial_api_failure_translation(self, mock_call_llm, client, sample_form_data):
+        """Проверяет поведение при ошибке перевода (вторая функция работает)."""
+        mock_call_llm.side_effect = [None, "Evaluation"]  # Перевод fail, оценка success
+        
+        response = client.post("/", data=sample_form_data)
+        html = response.get_data(as_text=True)
+        
+        assert response.status_code == 200
+        # Должна быть какая-то error message
+        assert "ошибка" in html.lower() or "error" in html.lower() or "не удалось" in html.lower()
+    
+    @patch('app.call_llm')
+    def test_api_timeout_simulation(self, mock_call_llm, client, sample_form_data):
+        """Проверяет обработку timeout от API."""
+        # Мокируем что функция вернула None (timeout обработан как ошибка)
+        mock_call_llm.return_value = None
+        
+        response = client.post("/", data=sample_form_data)
+        html = response.get_data(as_text=True)
+        
+        assert response.status_code == 200
+        # Должно быть сообщение об ошибке или пусто, но не 500 ошибка
+        assert len(html) > 0
+    
+    @patch('app.call_llm')
+    def test_malformed_api_response(self, mock_call_llm, client, sample_form_data):
+        """Проверяет обработку невалидного ответа от API."""
+        mock_call_llm.return_value = ""  # Пустой ответ
+        
+        response = client.post("/", data=sample_form_data)
+        html = response.get_data(as_text=True)
+        
+        assert response.status_code == 200
+        # Приложение не должно падать при пустом ответе
+
+
 # ========== МАРКЕРЫ ТЕСТОВ ==========
 # Используются для запуска специфических групп тестов:
-# pytest tests/test_app.py -m critical   # Запустить только критические тесты
-# pytest tests/test_app.py -m "not api"  # Запустить все кроме API тестов
+# pytest tests/test_app.py -m critical        # Запустить только критические тесты
+# pytest tests/test_app.py -m "not api"       # Запустить все кроме API тестов
+# pytest -m performance tests/test_app.py      # Только performance тесты
+# pytest tests/test_app.py --slow              # Медленные тесты

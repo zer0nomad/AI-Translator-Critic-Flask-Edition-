@@ -16,7 +16,10 @@ def pytest_configure(config):
     markers = [
         "critical: критические тесты приложения",
         "api: тесты интеграции с API",
-        "security: тесты безопасности"
+        "security: тесты безопасности",
+        "performance: тесты производительности",
+        "markdown: тесты обработки markdown",
+        "slow: медленные тесты"
     ]
     for marker in markers:
         config.addinivalue_line("markers", marker)
