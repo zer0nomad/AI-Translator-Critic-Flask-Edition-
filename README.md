@@ -7,6 +7,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Status: Production Ready](https://img.shields.io/badge/status-production%20ready-success)](README.md)
 
+<img width="1171" height="772" alt="image" src="https://github.com/user-attachments/assets/0e7f8dde-c81e-45ea-bee7-bb176cf3ea41" />
+
+
 ---
 
 ## 🎯 О проекте
