@@ -61,7 +61,9 @@ python src/app.py
 
 ## 📸 Как это выглядит
 
-![AI Translator & Critic - Interface](docs/screenshot.png)
+> **Скриншот:** Загрузите свой скриншот приложения в папку `/docs` или перетащите его при редактировании README на GitHub (см. [docs/README.md](docs/README.md) для инструкций)
+
+**ASCII-art версия интерфейса:**
 
 ```
 ┌─────────────────────────────────────────────────────┐
